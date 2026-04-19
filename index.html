@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>EcoBin | Smart Waste Command Center</title>
+
+<!-- Leaflet + Routing -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', 'Poppins', Tahoma, Geneva, Verdana, sans-serif;
+    background: radial-gradient(circle at 20% 30%, #0a2f1f, #031007);
+    color: #e8f5e9;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    background: radial-gradient(circle, #7cb342, #2e7d32);
+    border-radius: 50%;
+    filter: blur(1.5px);
+    opacity: 0.4;
+    animation: floatOrganic linear infinite;
+}
+
+@keyframes floatOrganic {
+    0% { transform: translateY(100vh) translateX(0) rotate(0deg); opacity: 0; }
+    20% { opacity: 0.6; }
+    80% { opacity: 0.5; }
+    100% { transform: translateY(-100vh) translateX(70px) rotate(360deg); opacity: 0; }
+}
+
+.login {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    border-radius: 2.5rem;
+    padding: 2rem;
+    width: 360px;
+    margin: 12vh auto;
+    border: 1px solid rgba(76, 175, 80, 0.6);
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    animation: fadeSlideUp 0.5s ease;
+    position: relative;
+    z-index: 2;
+}
+
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.login h1 {
+    background: linear-gradient(135deg, #b9f6ca, #4caf50);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-size: 1.9rem;
+}
+
+input, textarea {
+    padding: 12px 18px;
+    margin: 12px 0;
+    width: 100%;
+    border-radius: 60px;
+    border: none;
+    background: #f1f8e9;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    outline: none;
+}
+
+input:focus {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.5);
+}
+
+button {
+    padding: 10px 24px;
+    margin: 8px;
+    border: none;
+    border-radius: 60px;
+    background: linear-gradient(95deg, #2e7d32, #4caf50);
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+button:hover {
+    transform: translateY(-2px) scale(1.02);
+    filter: brightness(1.08);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
+}
+
+.logout {
+    background: linear-gradient(95deg, #b91c1c, #d62828);
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 200;
+}
+
+.dashboard {
+    display: none;
+    padding: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.action-center {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 20px auto 15px;
+}
+
+.route-btn {
+    background: linear-gradient(115deg, #1b5e2a, #0f4c2a);
+    font-size: 1rem;
+    padding: 12px 28px;
+    min-width: 200px;
+}
+
+.cards {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin: 30px 0;
+}
+
+.card {
+    width: 330px;
+    background: rgba(12, 28, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 2rem;
+    padding: 1.4rem;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    text-align: center;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    border-color: #9c27b0;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+}
+
+.status {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 40px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+.empty { background: #2e7d32; box-shadow: 0 0 6px #4caf50; }
+.medium { background: #f57c00; }
+.critical { background: #d32f2f; animation: pulseRed 1s infinite; }
+.gas-good { background: #ffc107; color: #1e2a1e; }
+.gas-warning { background: #f57c00; animation: pulseOrange 1.2s infinite; }
+.gas-critical { background: #d32f2f; animation: pulseRed 0.9s infinite; }
+
+@keyframes pulseRed {
+    0%, 100% { opacity: 1; background: #d32f2f; box-shadow: 0 0 5px #ff5252; }
+    50% { opacity: 0.85; background: #b71c1c; box-shadow: 0 0 15px #ff8a80; }
+}
+@keyframes pulseOrange {
+    0%, 100% { opacity: 1; background: #f57c00; }
+    50% { opacity: 0.8; background: #e65100; }
+}
+
+#map {
+    height: 420px;
+    width: 98%;
+    margin: 20px auto 10px;
+    border-radius: 32px;
+    border: 2px solid rgba(76, 175, 80, 0.5);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+.navigation-panel {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(16px);
+    border-radius: 28px;
+    width: 98%;
+    margin: 5px auto 15px;
+    padding: 12px 18px;
+    border: 1px solid #f9b43a;
+    transition: all 0.3s;
+}
+
+.nav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.nav-header h4 {
+    color: #f9b43a;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-btn {
+    background: #2c3e66;
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    margin: 0;
+}
+
+.nav-directions {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 20px;
+    padding: 12px;
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+.direction-step {
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: monospace;
+}
+
+.direction-icon {
+    font-size: 1.2rem;
+    min-width: 32px;
+    text-align: center;
+}
+
+.direction-text {
+    flex: 1;
+}
+
+.current-step {
+    background: rgba(249, 180, 58, 0.25);
+    border-left: 3px solid #f9b43a;
+    font-weight: bold;
+}
+
+.rewardBox {
+    background: linear-gradient(105deg, #f9b43a, #fb6b1e);
+    color: #1e2a3a;
+    padding: 8px 20px;
+    border-radius: 60px;
+    width: fit-content;
+    margin: 10px auto;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+}
+.rewardBox:hover { transform: scale(1.02); filter: brightness(1.02); }
+
+.alertBanner {
+    background: linear-gradient(95deg, #dc2f02, #9d0208);
+    padding: 14px;
+    font-weight: bold;
+    border-radius: 60px;
+    width: 90%;
+    margin: 15px auto;
+    display: none;
+    animation: glitchAlert 0.9s infinite;
+    text-align: center;
+}
+@keyframes glitchAlert {
+    0%, 100% { background: #dc2f02; box-shadow: 0 0 8px #ff8888; }
+    50% { background: #9d0208; box-shadow: 0 0 20px #ff4d4d; }
+}
+
+.leaderboard {
+    background: rgba(15, 35, 25, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    width: 320px;
+    margin: 20px auto;
+    padding: 15px;
+    text-align: left;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+.leaderboard ol { margin: 0; padding-left: 20px; }
+.leaderboard li { margin: 5px 0; }
+
+.adminPanel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 950px;
+    height: 80%;
+    background: rgba(10, 20, 15, 0.98);
+    backdrop-filter: blur(20px);
+    border-radius: 28px;
+    border: 2px solid #9c27b0;
+    z-index: 2000;
+    padding: 20px;
+    overflow-y: auto;
+}
+.closeAdmin {
+    float: right;
+    font-size: 28px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: white;
+}
+.sensor-status {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 11px;
+    z-index: 100;
+}
+.auto-refresh-status {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    z-index: 100;
+    transition: 0.2s;
+}
+.truck-icon { font-size: 34px; background: transparent; border: none; filter: drop-shadow(0 0 4px #ffaa44); }
+.depot-icon { font-size: 30px; }
+.loading-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.ip-input {
+    background: rgba(0,0,0,0.4);
+    border-radius: 50px;
+    width: fit-content;
+    margin: 8px auto;
+    padding: 6px 18px;
+}
+.camera-config {
+    background: rgba(0,0,0,0.4);
+    border-radius: 50px;
+    width: fit-content;
+    margin: 5px auto;
+    padding: 6px 18px;
+    border-left: 3px solid #f9b43a;
+}
+.redeemModal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #1a3a2a, #0d2a1a);
+    color: white;
+    padding: 25px;
+    border-radius: 28px;
+    width: 350px;
+    z-index: 1001;
+    border: 1px solid #f9b43a;
+}
+.redeemOption {
+    background: rgba(255,255,255,0.1);
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+}
+.redeemOption:hover { background: rgba(249, 180, 58, 0.3); transform: translateX(5px); }
+.complaintBox {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    color: black;
+    padding: 20px;
+    border-radius: 28px;
+    width: 320px;
+    z-index: 1001;
+}
+.overlay {
+    display: none;
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+}
+.cameraModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.96);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+.route-status {
+    text-align: center;
+    background: rgba(0,0,0,0.5);
+    padding: 6px 12px;
+    border-radius: 40px;
+    width: fit-content;
+    margin: 8px auto;
+    font-size: 13px;
+}
+.connection-status {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    z-index: 100;
+}
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<!-- LOGIN PANEL -->
+<div class="login" id="loginPage">
+    <h1>🌱 EcoBin Intelligence</h1>
+    <h3 style="font-weight: 400;">Smart Waste Ecosystem</h3>
+    <input type="text" id="loginUser" placeholder="Username" autocomplete="off">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button onclick="login()">🔐 Access Dashboard</button>
+    <button onclick="showRegisterPanel()" style="background:#2c3e66;">📝 Register</button>
+    <p id="errorMsg" style="color:#ffaaaa; font-size:13px; margin-top:8px;"></p>
+</div>
+
+<div class="login" id="registerPage" style="display:none">
+    <h1>📝 Join Green Mission</h1>
+    <input type="text" id="regUser" placeholder="Username">
+    <input type="password" id="regPass" placeholder="Password">
+    <input type="password" id="regPass2" placeholder="Confirm Password">
+    <button onclick="registerUser()">✅ Register</button>
+    <button onclick="backToLogin()">⬅️ Back</button>
+    <p id="regErrorMsg" style="color:#ffaaaa;"></p>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div class="dashboard" id="dashboardPage">
+    <button class="logout" onclick="logout()">🚪 Logout</button>
+    <div style="text-align:center; margin-bottom:5px;">
+        <button class="admin-btn" id="adminBtn" onclick="openAdminPanel()" style="display:none; background:#9c27b0;">👑 Admin Panel</button>
+    </div>
+    
+    <h1 style="text-align:center;">🗑️ SmartBin Command Center</h1>
+    
+    <div class="alertBanner" id="alertBanner">⚠️ CRITICAL: Dustbin >85% or Gas >85%! Immediate action required ⚠️</div>
+    
+    <div class="rewardBox" id="rewardBox" onclick="openRedeemModal()">
+        ⭐ My Points: <span id="rewardPoints">0</span> ⭐ <span style="font-size:10px;">(Click to Redeem)</span>
+    </div>
+    <div class="rewardBox">👑 Top Citizen: <span id="topUser">None</span></div>
+    
+    <div class="ip-input">
+        🔧 ESP8266 Sensor IP: 
+        <input type="text" id="nodemcuIp" placeholder="192.168.x.x" value="192.168.43.6" style="width:170px;">
+        <button onclick="updateNodeMCUIP()">Connect</button>
+        <button onclick="testConnection()" style="background:#2196f3;">Test Sensor</button>
+    </div>
+    
+    <!-- NEW: Camera IP Configuration Section -->
+    <div class="camera-config">
+        📷 Camera IP (MJPEG/Stream): 
+        <input type="text" id="cameraIp" placeholder="192.168.43.6" value="192.168.43.6" style="width:170px;">
+        <button onclick="updateCameraIP()" style="background:#f9b43a;">Set Camera</button>
+        <button onclick="testCameraConnection()" style="background:#ff9800;">Test Cam</button>
+        <button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Live View</button>
+    </div>
+    
+    <div class="action-center">
+        <button class="route-btn" id="optimizeRouteBtn" onclick="optimizeCollectionRoute()">🚛 Optimize Collection Route (AI)</button>
+        <button class="route-btn" onclick="manualRefresh()" style="background:#3b82f6;">🔄 Manual Refresh</button>
+    </div>
+    <div id="routeStatus" class="route-status"></div>
+    
+    <div class="cards" id="cardsContainer">
+        <div style="text-align:center; width:100%;">Loading smart sensors...<div class="loading-spinner" style="margin:10px auto;"></div></div>
+    </div>
+    
+    <h2>📍 Real-time Bin Map</h2>
+    <div id="map"></div>
+    
+    <!-- Navigation Panel -->
+    <div class="navigation-panel" id="navPanel" style="display: none;">
+        <div class="nav-header">
+            <h4>🚚 <span id="navTitle">Live Navigation</span> <span id="navStepCounter"></span></h4>
+            <div class="nav-controls">
+                <button class="nav-btn" id="prevStepBtn" onclick="prevNavigationStep()" disabled>◀ Prev</button>
+                <button class="nav-btn" id="nextStepBtn" onclick="nextNavigationStep()" disabled>Next ▶</button>
+                <button class="nav-btn" onclick="closeNavigationPanel()">✖ Close</button>
+            </div>
+        </div>
+        <div id="directionsList" class="nav-directions">
+            <div style="text-align:center; color:#aaa;">Click "Optimize Route" to get directions</div>
+        </div>
+    </div>
+    
+    <div class="leaderboard">
+        <h3>🏆 Leaderboard (Eco Points)</h3>
+        <ol id="leaderboardList">
+            <li>No points yet</li>
+        </ol>
+    </div>
+</div>
+
+<!-- Modals -->
+<div class="adminPanel" id="adminPanel"><button class="closeAdmin" onclick="closeAdminPanel()">&times;</button><h2>👑 Admin Dashboard</h2><button onclick="exportAdminData()" style="background:#4caf50;">📥 Export CSV</button><h3>Users & Points</h3><div id="usersTable"></div><h3>Complaints</h3><div id="complaintsList"></div></div>
+<div class="overlay" id="redeemOverlay" onclick="closeRedeemModal()"></div>
+<div class="redeemModal" id="redeemModal"><span class="closeRedeem" onclick="closeRedeemModal()" style="float:right; font-size:24px; cursor:pointer;">&times;</span><h3>🎁 Redeem Your Eco Points</h3><div id="redeemOptions"></div><div id="redeemMessage"></div></div>
+<div class="cameraModal" id="cameraModal">
+    <div style="background:#111; border-radius:32px; padding:20px; width:90%; max-width:900px; text-align:center;">
+        <button onclick="closeCameraModal()" style="float:right;">✖</button>
+        <h3 style="color:#f9b43a;">📡 Live Camera Feed</h3>
+        <img id="liveCamFeed" style="width:100%; max-height:70vh; border-radius:24px; border:2px solid #4caf50; background:#000;" alt="Camera stream">
+        <div style="display:flex; gap:12px; margin-top:15px; justify-content:center;">
+            <button onclick="refreshCameraStream()">🔄 Refresh Stream</button>
+            <button onclick="takeSnapshot()">📸 Snapshot</button>
+        </div>
+        <p style="font-size:12px; margin-top:12px;">Camera IP: <span id="cameraIpDisplay">192.168.43.6</span></p>
+    </div>
+</div>
+<div class="overlay" id="complaintOverlay"></div>
+<div class="complaintBox" id="complaintBox"><h3>📢 Report Issue</h3><p id="selectedBinName" style="font-weight:bold;"></p><input id="complainUserName" placeholder="Your Name"><textarea id="complainMessage" rows="3" placeholder="Describe problem..."></textarea><button onclick="submitComplaintForm()">Submit</button><button onclick="closeComplaintPanel()">Cancel</button></div>
+
+<div class="sensor-status" id="sensorStatus">📡 Enter ESP8266 IP and click Connect</div>
+<div class="auto-refresh-status" id="autoRefreshStatus">🔄 Auto-refresh: 40s</div>
+<div class="connection-status" id="connectionStatus">🔌 Checking connection...</div>
+
+<script>
+// ========== STORAGE & GLOBALS ==========
+const STORAGE_KEYS = { USERS: 'smart_users', REWARDS: 'smart_rewards', COMPLAINTS: 'smart_complaints', CAMERA_IP: 'ecobin_camera_ip' };
+let users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS));
+if (!users || Object.keys(users).length === 0) { users = { "admin": "admin123" }; localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)); }
+let rewardData = JSON.parse(localStorage.getItem(STORAGE_KEYS.REWARDS)) || {};
+let complaints = JSON.parse(localStorage.getItem(STORAGE_KEYS.COMPLAINTS)) || [];
+
+// Fixed coordinates
+const DEPOT = { lat: 25.772423309875606, lng: 87.46993186745198, name: "Municipal Corporation 🏢" };
+const BIN1 = { lat: 25.789089556813586, lng: 87.51917180978087, name: "Dustbin 1 - Girls Hostel", location: "Girls Hostel" };
+const BIN2 = { lat: 25.762395076411813, lng: 87.46767433861588, name: "Dustbin 2 - Boys Hostel", location: "Boys Hostel" };
+const GAS_SENSOR = { lat: 25.781676266733516, lng: 87.48882801479533, name: "Air Quality Monitor 🌫️" };
+
+let NODEMCU_URL = localStorage.getItem("nodemcu_url") || "192.168.43.6";
+let CAMERA_BASE_URL = localStorage.getItem(STORAGE_KEYS.CAMERA_IP) || "192.168.43.6";
+
+let bins = [
+    { ...BIN1, level: 0, isCritical: false },
+    { ...BIN2, level: 0, isCritical: false }
+];
+let gasData = { level: 0, isCritical: false, isWarning: false, airQuality: "Fresh", lat: GAS_SENSOR.lat, lng: GAS_SENSOR.lng };
+
+let globalMap = null, activeRoutingControl = null, truckMarker = null, depotMarker = null;
+let charts = [], gasChart = null;
+let autoRefreshInterval = null;
+let refreshCountdownInterval = null;
+let nextRefreshTime = null;
+const AUTO_TIME = 40000;
+const BIN_THRESHOLD = 85, GAS_CRIT = 85, GAS_WARN = 80;
+
+let currentRouteSteps = [];
+let currentStepIndex = 0;
+let currentOptimizedRoute = [];
+
+// Camera helpers
+function updateCameraIP() {
+    let newIp = document.getElementById("cameraIp").value.trim();
+    if (newIp) {
+        CAMERA_BASE_URL = newIp;
+        localStorage.setItem(STORAGE_KEYS.CAMERA_IP, CAMERA_BASE_URL);
+        document.getElementById("cameraIpDisplay").innerText = CAMERA_BASE_URL;
+        alert(`Camera IP set to ${CAMERA_BASE_URL}\nUse "Live View" to see stream`);
+    }
+}
+function getCameraStreamUrl() {
+    return `http://${CAMERA_BASE_URL}/stream`;
+}
+function testCameraConnection() {
+    let imgTest = new Image();
+    imgTest.onload = () => alert("✅ Camera reachable! Stream appears active.");
+    imgTest.onerror = () => alert("❌ Cannot reach camera. Check IP or ensure stream endpoint is /stream");
+    imgTest.src = getCameraStreamUrl() + "?t=" + Date.now();
+}
+function refreshCameraStream() {
+    let img = document.getElementById("liveCamFeed");
+    if (img) {
+        img.src = getCameraStreamUrl() + "?t=" + Date.now();
+    }
+}
+function openCameraForBin() {
+    let modal = document.getElementById("cameraModal");
+    if (modal) {
+        modal.style.display = "flex";
+        refreshCameraStream();
+    }
+}
+function closeCameraModal() {
+    document.getElementById("cameraModal").style.display = "none";
+}
+function takeSnapshot() {
+    window.open(getCameraStreamUrl(), '_blank');
+}
+
+// ========== IMPROVED ESP8266 DATA FETCH ==========
+async function testConnection() {
+    updateSensorStatus("checking", `Testing sensor at ${NODEMCU_URL}...`);
+    try {
+        let response = await fetch(`http://${NODEMCU_URL}/status`, { 
+            mode: 'cors',
+            cache: 'no-cache',
+            signal: AbortSignal.timeout(3000)
+        });
+        if (response.ok) {
+            let status = await response.text();
+            updateSensorStatus("connected", `✅ Sensor OK! ${status}`);
+            document.getElementById("connectionStatus").innerHTML = "✅ ESP8266 Online";
+            return true;
+        }
+    } catch(err) {
+        updateSensorStatus("disconnected", `⚠️ Sensor offline (demo mode)`);
+        document.getElementById("connectionStatus").innerHTML = "⚠️ ESP8266 Offline - Demo Mode";
+        return false;
+    }
+}
+
+async function fetchESP8266Data() {
+    try {
+        updateSensorStatus("checking", `Fetching from ${NODEMCU_URL}...`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        let response = await fetch(`http://${NODEMCU_URL}/data`, { 
+            mode: 'cors',
+            cache: 'no-cache',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+            let data = await response.json();
+            bins[0].level = Math.min(100, Math.max(0, data.bin1 || 0));
+            bins[1].level = Math.min(100, Math.max(0, data.bin2 || 0));
+            gasData.level = Math.min(100, Math.max(0, data.smell || 0));
+            updateBinStatus(bins[0]);
+            updateBinStatus(bins[1]);
+            updateGasStatus();
+            updateSensorStatus("connected", `✅ Live | Bin1:${bins[0].level}% Bin2:${bins[1].level}% Gas:${gasData.level}%`);
+            document.getElementById("connectionStatus").innerHTML = "✅ ESP8266 Connected";
+            return true;
+        }
+    } catch(err) {
+        console.log("JSON fetch error:", err);
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            let response = await fetch(`http://${NODEMCU_URL}/`, { mode: 'no-cors', cache: 'no-cache', signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (response && response.ok) {
+                let htmlText = await response.text();
+                let percentages = htmlText.match(/<div[^>]*>(\d+)%<\/div>/g);
+                if (percentages && percentages.length >= 3) {
+                    bins[0].level = parseInt(percentages[0].match(/\d+/)[0]);
+                    bins[1].level = parseInt(percentages[1].match(/\d+/)[0]);
+                    gasData.level = parseInt(percentages[2].match(/\d+/)[0]);
+                }
+                updateBinStatus(bins[0]);
+                updateBinStatus(bins[1]);
+                updateGasStatus();
+                updateSensorStatus("connected", `✅ HTML mode | B1:${bins[0].level}% B2:${bins[1].level}%`);
+                return true;
+            }
+        } catch(htmlErr) { console.log("HTML fallback fail", htmlErr); }
+    }
+    // demo mode
+    bins[0].level = Math.floor(Math.random() * 100);
+    bins[1].level = Math.floor(Math.random() * 100);
+    gasData.level = Math.floor(Math.random() * 100);
+    updateBinStatus(bins[0]);
+    updateBinStatus(bins[1]);
+    updateGasStatus();
+    updateSensorStatus("disconnected", `⚠️ Demo mode | B1:${bins[0].level}% B2:${bins[1].level}% Gas:${gasData.level}%`);
+    document.getElementById("connectionStatus").innerHTML = "⚠️ Demo Mode (No ESP8266)";
+    return false;
+}
+
+function updateBinStatus(bin) { bin.isCritical = bin.level >= BIN_THRESHOLD; return bin; }
+function updateGasStatus() {
+    gasData.isCritical = gasData.level >= GAS_CRIT;
+    gasData.isWarning = gasData.level >= GAS_WARN;
+    gasData.airQuality = gasData.level < GAS_WARN ? "Fresh 🟢" : (gasData.level < GAS_CRIT ? "Moderate Odor 🟠" : "Hazardous 🔴");
+}
+
+// ========== AUTO REFRESH & UI ==========
+function startAutoRefresh() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    if (refreshCountdownInterval) clearInterval(refreshCountdownInterval);
+    updateRefreshCountdown();
+    autoRefreshInterval = setInterval(async () => {
+        await fetchESP8266Data();
+        await updateDashboardUI();
+        updateMapMarkers();
+        updateRefreshCountdown();
+    }, AUTO_TIME);
+    startCountdownUI();
+}
+
+function startCountdownUI() {
+    if (refreshCountdownInterval) clearInterval(refreshCountdownInterval);
+    refreshCountdownInterval = setInterval(() => {
+        if (nextRefreshTime) {
+            const remaining = Math.max(0, nextRefreshTime - Date.now());
+            const secs = Math.ceil(remaining / 1000);
+            const statusDiv = document.getElementById("autoRefreshStatus");
+            if (statusDiv && document.getElementById("dashboardPage").style.display === "block") {
+                statusDiv.innerHTML = `🔄 Auto-refresh in ${secs}s`;
+                statusDiv.style.background = secs <= 5 ? "#f57c00" : "rgba(0,0,0,0.7)";
+            }
+        }
+    }, 1000);
+}
+
+function updateRefreshCountdown() { nextRefreshTime = Date.now() + AUTO_TIME; }
+function stopAutoRefresh() { if (autoRefreshInterval) clearInterval(autoRefreshInterval); if (refreshCountdownInterval) clearInterval(refreshCountdownInterval); }
+
+function getBinStatusClass(level) { return level >= BIN_THRESHOLD ? "critical" : "empty"; }
+function getBinStatusText(level) { return level >= BIN_THRESHOLD ? "Critical 🔴" : "Normal 🟢"; }
+function getGasStatusClass(level) { return level >= GAS_CRIT ? "gas-critical" : (level >= GAS_WARN ? "gas-warning" : "gas-good"); }
+function getGasColor(level) { return level >= GAS_CRIT ? '#d32f2f' : (level >= GAS_WARN ? '#f57c00' : '#ffc107'); }
+function getBinColor(level) { return level >= BIN_THRESHOLD ? '#d32f2f' : '#2e7d32'; }
+
+async function updateDashboardUI() {
+    for (let i=0; i<2; i++) {
+        if (charts[i]) {
+            let lvl = bins[i].level;
+            charts[i].data.datasets[0].data = [lvl, 100-lvl];
+            charts[i].data.datasets[0].backgroundColor = [getBinColor(lvl), '#475569'];
+            charts[i].update();
+        }
+        let percentSpan = document.getElementById(`bin_percent_${i}`);
+        if (percentSpan) percentSpan.innerText = `${bins[i].level}%`;
+        let statusSpan = document.getElementById(`bin_status_${i}`);
+        if (statusSpan) { statusSpan.className = `status ${getBinStatusClass(bins[i].level)}`; statusSpan.innerText = getBinStatusText(bins[i].level); }
+    }
+    if (gasChart) {
+        let lvl = gasData.level;
+        gasChart.data.datasets[0].data = [lvl, 100-lvl];
+        gasChart.data.datasets[0].backgroundColor = [getGasColor(lvl), '#475569'];
+        gasChart.update();
+        let gp = document.getElementById(`gas_percent`); if(gp) gp.innerText = `${lvl}%`;
+        let gs = document.getElementById(`gas_status`); if(gs) { gs.className = `status ${getGasStatusClass(lvl)}`; gs.innerText = lvl>=GAS_CRIT ? "Critical 🔴" : (lvl>=GAS_WARN ? "Warning 🟠" : "Good 🟡"); }
+        let aq = document.getElementById(`gas_quality`); if(aq) aq.innerText = gasData.airQuality;
+    }
+    let hasCritical = bins[0].isCritical || bins[1].isCritical || gasData.isCritical;
+    let banner = document.getElementById("alertBanner");
+    if (banner) banner.style.display = hasCritical ? "block" : "none";
+    updateLeaderboardUI();
+    updateMapMarkers();
+}
+
+function createBinCard(bin, idx) {
+    const container = document.getElementById("cardsContainer");
+    const canvasId = `bin_chart_${idx}`;
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = `<h3>🗑️ ${bin.name}</h3><p>📍 ${bin.location}</p><canvas id="${canvasId}" style="max-width:170px; margin:0 auto;"></canvas><p><strong style="font-size:32px;" id="bin_percent_${idx}">${bin.level}%</strong> full</p><span class="status ${getBinStatusClass(bin.level)}" id="bin_status_${idx}">${getBinStatusText(bin.level)}</span><br><br><button onclick="openComplaintDialog('${bin.name}')" style="background:#f97316;">📢 Complain</button><button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Camera</button>`;
+    container.appendChild(card);
+    setTimeout(() => {
+        let canvas = document.getElementById(canvasId);
+        if (canvas) {
+            let chart = new Chart(canvas.getContext('2d'), { type: 'doughnut', data: { datasets: [{ data: [bin.level, 100-bin.level], backgroundColor: [getBinColor(bin.level), '#475569'], borderWidth: 0 }] }, options: { cutout: '68%', responsive: true, plugins: { legend: { display: false } } } });
+            charts[idx] = chart;
+        }
+    }, 30);
+}
+
+function createGasCard() {
+    const container = document.getElementById("cardsContainer");
+    const canvasId = "gas_chart";
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = `<h3>🌫️ Air Quality Monitor</h3><p>📍 Gas Sensor Location</p><canvas id="${canvasId}" style="max-width:170px; margin:0 auto;"></canvas><p><strong style="font-size:32px;" id="gas_percent">${gasData.level}%</strong> level</p><p>Air Quality: <strong id="gas_quality">${gasData.airQuality}</strong></p><span class="status ${getGasStatusClass(gasData.level)}" id="gas_status">${gasData.level>=GAS_CRIT?"Critical 🔴":(gasData.level>=GAS_WARN?"Warning 🟠":"Good 🟡")}</span><br><br><button onclick="openComplaintDialog('Air Quality Monitor')" style="background:#f97316;">📢 Complain</button><button onclick="openCameraForBin()" style="background:#3b82f6;">🎥 Camera</button>`;
+    container.appendChild(card);
+    setTimeout(() => {
+        let canvas = document.getElementById(canvasId);
+        if (canvas) {
+            gasChart = new Chart(canvas.getContext('2d'), { type: 'doughnut', data: { datasets: [{ data: [gasData.level, 100-gasData.level], backgroundColor: [getGasColor(gasData.level), '#475569'], borderWidth: 0 }] }, options: { cutout: '68%', responsive: true, plugins: { legend: { display: false } } } });
+        }
+    }, 30);
+}
+
+async function renderFullDashboard() {
+    const container = document.getElementById("cardsContainer");
+    if (!container) return;
+    container.innerHTML = "";
+    charts = []; if(gasChart) gasChart?.destroy();
+    await fetchESP8266Data();
+    createBinCard(bins[0], 0);
+    createBinCard(bins[1], 1);
+    createGasCard();
+    updateMapMarkers();
+}
+
+function updateMapMarkers() {
+    if (!globalMap) return;
+    globalMap.eachLayer(layer => { if (layer.options && layer.options.pane === 'markerPane' && layer !== depotMarker && layer !== truckMarker) globalMap.removeLayer(layer); });
+    const depotIcon = L.divIcon({ html: '🏢', iconSize: [34,34], className: 'depot-icon' });
+    depotMarker = L.marker([DEPOT.lat, DEPOT.lng], { icon: depotIcon }).addTo(globalMap).bindPopup(`<b>${DEPOT.name}</b><br>🚛 Start`);
+    bins.forEach(b => { let col = b.isCritical ? '#d32f2f' : '#4caf50'; L.circleMarker([b.lat, b.lng], { radius: 14, color: col, fillColor: col, fillOpacity: 0.7 }).bindPopup(`<b>${b.name}</b><br>Fill: ${b.level}%`).addTo(globalMap); });
+    let gasCol = gasData.isCritical ? '#d32f2f' : (gasData.isWarning ? '#f57c00' : '#ffcc00');
+    L.circleMarker([gasData.lat, gasData.lng], { radius: 12, color: gasCol, fillColor: gasCol, fillOpacity: 0.7 }).bindPopup(`<b>🌫️ Gas</b><br>${gasData.level}%`).addTo(globalMap);
+}
+
+// ========== ROUTE & NAVIGATION (unchanged but kept) ==========
+function calculateDistance(lat1,lng1,lat2,lng2) { const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLng=(lng2-lng1)*Math.PI/180; const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+function getBearing(lat1,lng1,lat2,lng2) { const φ1=lat1*Math.PI/180, φ2=lat2*Math.PI/180; const Δλ=(lng2-lng1)*Math.PI/180; const y=Math.sin(Δλ)*Math.cos(φ2); const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ); const θ=Math.atan2(y,x); return (θ*180/Math.PI+360)%360; }
+function getDirectionIcon(bearing) { if(bearing>=45 && bearing<135) return "⬆️ North"; if(bearing>=135 && bearing<225) return "⬅️ West"; if(bearing>=225 && bearing<315) return "⬇️ South"; return "➡️ East"; }
+function generateTurnByTurn(routePoints) { let steps=[]; for(let i=0;i<routePoints.length-1;i++){ const from=routePoints[i], to=routePoints[i+1]; const dist=calculateDistance(from.lat,from.lng,to.lat,to.lng).toFixed(2); const bearing=getBearing(from.lat,from.lng,to.lat,to.lng); let instruction=(i===0)?`🚀 Start from ${from.name||"Depot"}`:((()=>{const prevBearing=getBearing(routePoints[i-1].lat,routePoints[i-1].lng,from.lat,from.lng);const diff=(bearing-prevBearing+360)%360; if(diff<30||diff>330) return "➡️ Continue straight"; if(diff<150) return "↩️ Turn Right"; return "↪️ Turn Left";})()); steps.push({ from:from.name, to:to.name, direction:getDirectionIcon(bearing), action:instruction||`Go towards ${to.name}`, distance:dist, lat:to.lat, lng:to.lng }); } steps.push({ action:"🏁 Arrived + Return to Depot", distance:"0", direction:"✅" }); return steps; }
+function displayNavigationPanel(steps) { const panel=document.getElementById("navPanel"); const listDiv=document.getElementById("directionsList"); if(!steps||steps.length===0){ listDiv.innerHTML="<div style='text-align:center'>No active route.</div>"; panel.style.display="none"; return; } panel.style.display="block"; let html=""; steps.forEach((step,idx)=>{ const activeClass=(idx===currentStepIndex)?"current-step":""; html+=`<div class="direction-step ${activeClass}" data-step="${idx}"><div class="direction-icon">${step.direction||"📍"}</div><div class="direction-text"><strong>${step.action}</strong> ${step.distance?`(${step.distance} km)`:""}</div></div>`; }); listDiv.innerHTML=html; document.getElementById("navStepCounter").innerHTML=`Step ${currentStepIndex+1}/${steps.length}`; document.getElementById("prevStepBtn").disabled=(currentStepIndex===0); document.getElementById("nextStepBtn").disabled=(currentStepIndex>=steps.length-1); }
+function nextNavigationStep(){ if(currentRouteSteps&&currentStepIndex<currentRouteSteps.length-1){ currentStepIndex++; displayNavigationPanel(currentRouteSteps); if(currentOptimizedRoute[currentStepIndex]) globalMap.setView([currentOptimizedRoute[currentStepIndex].lat, currentOptimizedRoute[currentStepIndex].lng],16); } }
+function prevNavigationStep(){ if(currentStepIndex>0){ currentStepIndex--; displayNavigationPanel(currentRouteSteps); if(currentOptimizedRoute[currentStepIndex]) globalMap.setView([currentOptimizedRoute[currentStepIndex].lat, currentOptimizedRoute[currentStepIndex].lng],16); } }
+function closeNavigationPanel(){ document.getElementById("navPanel").style.display="none"; }
+function getOptimizedRoute(criticalBins){ let route=[{lat:DEPOT.lat,lng:DEPOT.lng,name:DEPOT.name,isDepot:true}]; let remaining=[...criticalBins]; let curr={lat:DEPOT.lat,lng:DEPOT.lng}; while(remaining.length){ let idx=0,dist=Infinity; for(let i=0;i<remaining.length;i++){ let d=calculateDistance(curr.lat,curr.lng,remaining[i].lat,remaining[i].lng); if(d<dist){dist=d; idx=i;} } route.push(remaining[idx]); curr={lat:remaining[idx].lat,lng:remaining[idx].lng}; remaining.splice(idx,1); } route.push({lat:DEPOT.lat,lng:DEPOT.lng,name:"Return to Depot",isDepot:true}); return route; }
+async function optimizeCollectionRoute(){ if(!globalMap) return; let criticalBins=bins.filter(b=>b.level>=BIN_THRESHOLD); if(criticalBins.length===0){ document.getElementById("routeStatus").innerHTML="✅ No critical bins (≥85%)."; setTimeout(()=>document.getElementById("routeStatus").innerHTML="",3000); return; } let route=getOptimizedRoute(criticalBins); currentOptimizedRoute=route; currentRouteSteps=generateTurnByTurn(route); currentStepIndex=0; displayNavigationPanel(currentRouteSteps); if(activeRoutingControl&&activeRoutingControl.polyline) globalMap.removeLayer(activeRoutingControl.polyline); let latlngs=route.map(p=>L.latLng(p.lat,p.lng)); let polyline=L.polyline(latlngs,{color:'#ff5555',weight:5,dashArray:'8,8'}).addTo(globalMap); activeRoutingControl={polyline}; globalMap.fitBounds(L.latLngBounds(latlngs),{padding:[50,50]}); document.getElementById("routeStatus").innerHTML=`🚛 Route: ${criticalBins.length} bin(s) | Turn-by-turn ready ↓`; startTruckAnimation(route); }
+function startTruckAnimation(route){ if(truckMarker) globalMap.removeLayer(truckMarker); const truckIcon=L.divIcon({html:'🚛',iconSize:[38,38],className:'truck-icon'}); truckMarker=L.marker([route[0].lat,route[0].lng],{icon:truckIcon}).addTo(globalMap); let step=0; if(window.truckInterval) clearInterval(window.truckInterval); window.truckInterval=setInterval(()=>{ if(step>=route.length){ clearInterval(window.truckInterval); if(truckMarker) globalMap.removeLayer(truckMarker); return; } truckMarker.setLatLng([route[step].lat,route[step].lng]); truckMarker.bindPopup(route[step].isDepot?"🏢 Depot":"🗑️ "+route[step].name).openPopup(); step++; },2200); }
+
+// ========== REWARDS & COMPLAINTS ==========
+function openRedeemModal() { let curr=localStorage.getItem("currentSmartUser"); if(!curr) return; let opts=`<div class="redeemOption" onclick="redeemPoints(50,'Sponsor 1 Tree 🌳')"><span>🌳 Sponsor 1 Tree</span><span>50 Points</span></div><div class="redeemOption" onclick="redeemPoints(100,'₹10 Coupon 🎫')"><span>🎫 ₹10 Coupon</span><span>100 Points</span></div><div class="redeemOption" onclick="redeemPoints(300,'Movie/Bus Ticket Discount 🎬')"><span>🎬 Movie/Bus Discount</span><span>300 Points</span></div><div class="redeemOption" onclick="redeemPoints(500,'Swachh Bharat Certificate 🏆')"><span>🏆 Swachh Bharat Certificate</span><span>500 Points</span></div>`; document.getElementById("redeemOptions").innerHTML=opts; document.getElementById("redeemModal").style.display="block"; document.getElementById("redeemOverlay").style.display="block"; }
+function closeRedeemModal() { document.getElementById("redeemModal").style.display="none"; document.getElementById("redeemOverlay").style.display="none"; }
+function redeemPoints(p,reward){ let user=localStorage.getItem("currentSmartUser"); if(!user||(rewardData[user]||0)<p){ alert(`❌ Need ${p} points!`); return; } rewardData[user]-=p; localStorage.setItem(STORAGE_KEYS.REWARDS,JSON.stringify(rewardData)); alert(`✅ Redeemed: ${reward} -${p} points`); updateLeaderboardUI(); closeRedeemModal(); }
+function updateLeaderboardUI() { let sorted=Object.entries(rewardData).sort((a,b)=>b[1]-a[1]); let list=document.getElementById("leaderboardList"); if(list){ list.innerHTML=""; if(sorted.length===0) list.innerHTML="<li>No points yet. Report issues to earn points!</li>"; else sorted.slice(0,10).forEach(([n,p])=>{ let li=document.createElement("li"); li.innerText=`${n} - ${p} pts`; list.appendChild(li); }); document.getElementById("topUser").innerText=sorted.length?`${sorted[0][0]} (${sorted[0][1]} pts)`:"None"; } let curr=localStorage.getItem("currentSmartUser"); if(curr) document.getElementById("rewardPoints").innerText=rewardData[curr]||0; }
+function addPointsToUser(u,pts){ if(!u) return; if(!rewardData[u]) rewardData[u]=0; rewardData[u]+=pts; localStorage.setItem(STORAGE_KEYS.REWARDS,JSON.stringify(rewardData)); updateLeaderboardUI(); }
+let activeComplaintItem="";
+function openComplaintDialog(item){ activeComplaintItem=item; document.getElementById("selectedBinName").innerText="Issue: "+item; document.getElementById("complaintOverlay").style.display="block"; document.getElementById("complaintBox").style.display="block"; }
+function closeComplaintPanel(){ document.getElementById("complaintOverlay").style.display="none"; document.getElementById("complaintBox").style.display="none"; document.getElementById("complainUserName").value=""; document.getElementById("complainMessage").value=""; }
+function submitComplaintForm(){ let uname=document.getElementById("complainUserName").value.trim(); let msg=document.getElementById("complainMessage").value.trim(); if(!uname||!msg){ alert("Fill all fields"); return; } let isCrit=(activeComplaintItem.includes("Dustbin")&&bins.find(b=>b.name===activeComplaintItem)?.isCritical)||(activeComplaintItem.includes("Air")&&gasData.isCritical); complaints.push({ id:Date.now(), username:uname, binName:activeComplaintItem, message:msg, isCritical:isCrit, date:new Date().toLocaleString() }); localStorage.setItem(STORAGE_KEYS.COMPLAINTS,JSON.stringify(complaints)); let pts=isCrit?10:2; addPointsToUser(uname,pts); alert(`✅ Complaint submitted! +${pts} points.`); closeComplaintPanel(); }
+function openAdminPanel(){ if(localStorage.getItem("currentSmartUser")!=="admin"){ alert("Admin only"); return; } let html=`<table border=1 style="width:100%"><tr><th>User</th><th>Points</th><th>Action</th></tr>`; for(let u in rewardData) html+=`<tr><td>${u}</td><td>${rewardData[u]}</td><td>${u!=="admin"?`<button onclick="deleteUser('${u}')">Delete</button>`:"Admin"}</td></tr>`; for(let u in users) if(!rewardData[u] && u!=="admin") html+=`<tr><td>${u}</td><td>0</td><td><button onclick="deleteUser('${u}')">Delete</button></td></tr>`; html+=`</table>`; document.getElementById("usersTable").innerHTML=html; let compHtml=""; complaints.slice().reverse().forEach(c=>{ compHtml+=`<div><strong>${c.date}</strong> ${c.username} - ${c.binName}: ${c.message} [${c.isCritical?"+10pts":"+2pts"}]</div>`; }); document.getElementById("complaintsList").innerHTML=compHtml||"<p>No complaints</p>"; document.getElementById("adminPanel").style.display="block"; }
+function closeAdminPanel(){ document.getElementById("adminPanel").style.display="none"; }
+function deleteUser(u){ if(confirm(`Delete ${u}?`)){ delete users[u]; delete rewardData[u]; localStorage.setItem(STORAGE_KEYS.USERS,JSON.stringify(users)); localStorage.setItem(STORAGE_KEYS.REWARDS,JSON.stringify(rewardData)); openAdminPanel(); updateLeaderboardUI(); } }
+function exportAdminData(){ let csv="User,Points\n"; for(let[u,p] of Object.entries(rewardData)) csv+=`${u},${p}\n`; const blob=new Blob([csv],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="ecobin_data.csv"; a.click(); }
+function initMapAndSystem(){ if(globalMap) globalMap.remove(); let center=(DEPOT.lat+BIN1.lat+BIN2.lat+GAS_SENSOR.lat)/4; let centerLng=(DEPOT.lng+BIN1.lng+BIN2.lng+GAS_SENSOR.lng)/4; globalMap=L.map('map').setView([center,centerLng],13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(globalMap); renderFullDashboard(); }
+async function manualRefresh(){ await fetchESP8266Data(); await updateDashboardUI(); updateMapMarkers(); }
+function updateNodeMCUIP(){ let newIp=document.getElementById("nodemcuIp").value.trim(); if(newIp){ NODEMCU_URL=newIp; localStorage.setItem("nodemcu_url",NODEMCU_URL); testConnection(); manualRefresh(); } }
+function updateSensorStatus(status,msg){ let div=document.getElementById("sensorStatus"); if(div){ div.innerHTML=msg; div.className=`sensor-status ${status}`; } }
+function login(){ let u=document.getElementById("loginUser").value.trim(); let p=document.getElementById("loginPass").value.trim(); if(users[u] && users[u]===p){ localStorage.setItem("currentSmartUser",u); document.getElementById("loginPage").style.display="none"; document.getElementById("dashboardPage").style.display="block"; if(u==="admin") document.getElementById("adminBtn").style.display="inline-block"; initMapAndSystem(); startAutoRefresh(); testConnection(); let storedCam = localStorage.getItem(STORAGE_KEYS.CAMERA_IP); if(storedCam) { CAMERA_BASE_URL = storedCam; document.getElementById("cameraIp").value = storedCam; document.getElementById("cameraIpDisplay").innerText = storedCam; } } else document.getElementById("errorMsg").innerText="❌ Invalid username or password"; }
+function logout(){ stopAutoRefresh(); if(window.truckInterval) clearInterval(window.truckInterval); localStorage.removeItem("currentSmartUser"); location.reload(); }
+function showRegisterPanel(){ document.getElementById("loginPage").style.display="none"; document.getElementById("registerPage").style.display="block"; }
+function backToLogin(){ document.getElementById("registerPage").style.display="none"; document.getElementById("loginPage").style.display="block"; }
+function registerUser(){ let u=document.getElementById("regUser").value.trim(); let p=document.getElementById("regPass").value.trim(); let p2=document.getElementById("regPass2").value.trim(); if(!u||!p){ document.getElementById("regErrorMsg").innerText="❌ Fill all fields"; return; } if(p!==p2){ document.getElementById("regErrorMsg").innerText="❌ Passwords do not match"; return; } if(users[u]){ document.getElementById("regErrorMsg").innerText="❌ Username exists"; return; } users[u]=p; localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)); alert("✅ Registration successful!"); backToLogin(); }
+function createParticles(){ let container=document.getElementById("particles"); for(let i=0;i<80;i++){ let p=document.createElement("div"); p.className="particle"; let sz=Math.random()*6+2; p.style.width=sz+"px"; p.style.height=sz+"px"; p.style.left=Math.random()*100+"%"; p.style.animationDuration=Math.random()*14+6+"s"; p.style.animationDelay=Math.random()*12+"s"; p.style.background=`radial-gradient(circle, #81c784, #2e7d32)`; container.appendChild(p); } }
+window.onload=()=>{ let curr=localStorage.getItem("currentSmartUser"); if(curr && users[curr]){ document.getElementById("loginPage").style.display="none"; document.getElementById("dashboardPage").style.display="block"; if(curr==="admin") document.getElementById("adminBtn").style.display="inline-block"; initMapAndSystem(); startAutoRefresh(); testConnection(); let storedCam = localStorage.getItem(STORAGE_KEYS.CAMERA_IP); if(storedCam) { CAMERA_BASE_URL = storedCam; document.getElementById("cameraIp").value = storedCam; document.getElementById("cameraIpDisplay").innerText = storedCam; } } else document.getElementById("loginPage").style.display="block"; createParticles(); };
+</script>
+</body>
+</html>
